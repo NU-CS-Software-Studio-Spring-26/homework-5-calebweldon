@@ -59,7 +59,9 @@ exact files and line numbers. Do not propose changes.
   7. **Optional system test in `test/system/todos_test.rb`**
      - Only if filter links are added in step 3: visit index, click `Overdue`, and assert only the expected todo appears.
      - Not required if controller/model tests are thorough, but useful for the new UI controls.
+
   **Migration:** None. The `due_date` column already exists via `db/migrate/20260519180933_add_due_date_to_todo.rb`.
+
   **Files to edit:**
   - `app/models/todo.rb`
   - `app/controllers/todos_controller.rb`
@@ -74,7 +76,37 @@ exact files and line numbers. Do not propose changes.
   - Freeze time in tests with `travel_to` so overdue/upcoming don't break depending on when you run them.
 
 ## PART 3 (AGENT)
-
-- **Prompt:** Implement only step 1 from my plan: add `overdue` and `upcoming` scopes to `app/models/todo.rb`. Overdue means `due_date` is in the past; upcoming means `due_date` is within the next 7 days. Exclude todos with no `due_date` from both scopes. Do not change the controller, views, or tests yet.
+- **Prompt:** Implement only step 1 from my plan found under "### PART 3 (PLAN)" in submission.md
 
 - **Commit:** [d503a6f](https://github.com/NU-CS-Software-Studio-Spring-26/homework-5-calebweldon/commit/d503a6f)
+
+## PART 3 (PROMPT REWRITE)
+- **Bad Prompt:** Users can't set a due date when creating or editing a todo
+
+- **Good Prompt:**
+    1. **Context:** The following paths are relevant:
+        - `db/schema.rb`: `todos` table with a `due_date` column
+        - `app/models/todo.rb`: `overdue`/`upcoming` scopes for filtering
+        - `app/controllers/todos_controller.rb`: where create/update flow lives (`#create`, `#update`, `todo_params`)
+        - `app/views/todos/_form.html.erb`: form partial
+        - `test/controllers/todos_controller_test.rb`: controller tests
+
+    2. **Task:** Allow `due_date` to be saved when creating or updating a todo; add it to strong params and add a due-date field to the form.
+
+    3. **Expected vs. actual:**
+        - **Expected:** `POST /todos` or `PATCH /todos/:id` with a `due_date` param saves that value on the record.
+        - **Actual:**
+            - `app/views/todos/_form.html.erb` has no due-date field, so the browser never sends one.
+            - `todo_params` in `app/controllers/todos_controller.rb` (line 75) only permits `:description`, so any `due_date` param is silently dropped.
+            - The request still succeeds, but the saved todo’s `due_date` remains `nil`.
+
+    4. **Constraints:**
+        - Please refer to `rails-conventions.mdc` and `security.mdc`
+        - You may edit `app/controllers/todos_controller.rb`, `app/views/todos/_form.html.erb`, `test/controllers/todos_controller_test.rb`
+        - Do not add gems, migrations, or JavaScript
+        - Use `params.expect(...)` for strong params
+
+    5. **Done when:**
+        - A new test in `test/controllers/todos_controller_test.rb` creates a todo with a `due_date` and asserts the saved record’s `due_date` matches
+        - A new test in `test/controllers/todos_controller_test.rb` updates an existing todo with a `due_date` and asserts the saved record’s `due_date` matches
+        - `bin/rails test test/controllers/todos_controller_test.rb` passes
