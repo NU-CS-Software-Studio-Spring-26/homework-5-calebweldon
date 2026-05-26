@@ -1,0 +1,10 @@
+---
+description: Security rules for AI-generated Rails changes
+alwaysApply: true
+---
+
+- Never write, log, or echo secrets, API keys, or production credentials.
+- Never use `eval` (or similar dynamic execution) on user input.
+- Never use `html_safe` or `raw` on untrusted input.
+- Use parameterized queries; never string-interpolate SQL.
+- Do not disable CSRF protection, mass assignment protection, or Devise session checks.
