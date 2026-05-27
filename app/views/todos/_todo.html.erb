@@ -4,4 +4,13 @@
     <%= todo.description %>
   </p>
 
+  <%= button_to(
+        (todo.high_priority? ? "High priority" : "Mark as high priority"),
+        toggle_high_priority_todo_path(todo),
+        method: :patch
+      ) %>
+
+  <p>
+    <%= link_to "Show this todo", todo %>
+  </p>
 </div>
