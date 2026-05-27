@@ -22,56 +22,138 @@ exact files and line numbers. Do not propose changes.
 - **Prompt:** I want to change where the todos index is filtered so that the index supports a filter query param with values all (default), overdue (todos with a due date in the past), and upcoming (todos due within the next 7 days). Propose a plan as a numbered list of changes, including files to edit, new tests to add, and any migration. Do not write code.
 
 - **Plan from agent:**
-  1. **Add model scopes in `app/models/todo.rb`**
-     - Add two scopes that only consider todos with a non-null `due_date`:
-       - `overdue`: `due_date` is before the current time
-       - `upcoming`: `due_date` is between now and 7 days from now (inclusive of that window)
-     - Todos with no `due_date` should be excluded from both filtered scopes and only appear under `all`.
-     - Keep query logic in the model so it is reusable and testable.
-  2. **Apply the filter in `app/controllers/todos_controller.rb`**
-     - Replace `@todos = Todo.all` in `#index` with logic that reads `params[:filter]`.
-     - Supported values:
-       - missing, blank, or `"all"` → `Todo.all`
-       - `"overdue"` → `Todo.overdue`
-       - `"upcoming"` → `Todo.upcoming`
-     - Unknown values should fall back to `Todo.all`.
-     - Assign `@todos` once in the controller so HTML and JSON index responses stay in sync. Do not duplicate filtering in `app/views/todos/index.html.erb` or `app/views/todos/index.json.jbuilder`.
-  3. **Add filter controls to `app/views/todos/index.html.erb`**
-     - Add simple links or a GET form above the todo list for `All`, `Overdue`, and `Upcoming`.
-     - Each control should hit `/todos?filter=...` using normal Rails URL helpers.
-     - No new JavaScript or Stimulus controller is required.
-  4. **Update fixtures in `test/fixtures/todos.yml`**
-     - Give fixtures distinct `due_date` values so tests can distinguish:
-       - one overdue todo
-       - one upcoming todo (within 7 days)
-       - one with no due date
-       - optionally one due more than 7 days out (should not appear in `upcoming`)
-  5. **Add model tests in `test/models/todo_test.rb`**
-     - Test `Todo.overdue` returns only past-dated todos with a due date.
-     - Test `Todo.upcoming` returns only todos due within the next 7 days.
-     - Test todos without a `due_date` are excluded from both scopes.
-  6. **Add controller tests in `test/controllers/todos_controller_test.rb`**
-     - Keep the existing `"should get index"` test for the default unfiltered case.
-     - Add tests for:
-       - `GET /todos?filter=overdue` returns success and only overdue fixture(s)
-       - `GET /todos?filter=upcoming` returns success and only upcoming fixture(s)
-       - `GET /todos?filter=all` returns all todos
-       - invalid filter value falls back to all todos
-     - Assert on assigned records or response body content using fixture descriptions.
-     - Optionally add one JSON index test to confirm filtered `@todos` is serialized the same way.
-  7. **Optional system test in `test/system/todos_test.rb`**
-     - Only if filter links are added in step 3: visit index, click `Overdue`, and assert only the expected todo appears.
-     - Not required if controller/model tests are thorough, but useful for the new UI controls.
+---
+name: Todo Index Filtering
+overview: Add overdue/upcoming/all filtering to the todos index via a `filter` query param, with model scopes, controller logic, view controls, fixtures, and model/controller tests. No migration needed.
+todos:
+  - id: model-scopes
+    content: Add overdue and upcoming scopes to app/models/todo.rb
+    status: pending
+  - id: controller-filter
+    content: Wire params[:filter] in TodosController#index
+    status: pending
+  - id: view-controls
+    content: Add All/Overdue/Upcoming filter links or form to index.html.erb
+    status: pending
+  - id: fixtures
+    content: Update test/fixtures/todos.yml with distinct due_date values
+    status: pending
+  - id: model-tests
+    content: Add scope tests in test/models/todo_test.rb
+    status: pending
+  - id: controller-tests
+    content: Add filter param tests in test/controllers/todos_controller_test.rb
+    status: pending
+  - id: system-test
+    content: "Optional: add system test for filter link clicks in test/system/todos_test.rb"
+    status: pending
+isProject: false
+---
 
-  **Migration:** None. The `due_date` column already exists via `db/migrate/20260519180933_add_due_date_to_todo.rb`.
+# Todo Index Filter Plan
 
-  **Files to edit:**
-  - `app/models/todo.rb`
-  - `app/controllers/todos_controller.rb`
-  - `app/views/todos/index.html.erb`
-  - `test/fixtures/todos.yml`
-  - `test/models/todo_test.rb`
-  - `test/controllers/todos_controller_test.rb`
+## 1. Add model scopes in [`app/models/todo.rb`](app/models/todo.rb)
+
+- Add two scopes that only consider todos with a non-null `due_date`:
+  - `overdue`: `due_date` is before the current time
+  - `upcoming`: `due_date` is between now and 7 days from now (inclusive of that window)
+- Todos with no `due_date` should be excluded from both filtered scopes and only appear under `all`.
+- Keep query logic in the model so it is reusable and testable.
+
+Example scope shape:
+
+```ruby
+scope :overdue, -> { where.not(due_date: nil).where("due_date < ?", Time.current) }
+scope :upcoming, -> { where.not(due_date: nil).where(due_date: Time.current..7.days.from_now) }
+```
+
+## 2. Apply the filter in [`app/controllers/todos_controller.rb`](app/controllers/todos_controller.rb)
+
+- Replace `@todos = Todo.all` in `#index` (line 6) with logic that reads `params[:filter]`.
+- Supported values:
+  - missing, blank, or `"all"` → `Todo.all`
+  - `"overdue"` → `Todo.overdue`
+  - `"upcoming"` → `Todo.upcoming`
+- Unknown values should fall back to `Todo.all`.
+- Assign `@todos` once in the controller so HTML and JSON index responses stay in sync. Do not duplicate filtering in [`app/views/todos/index.html.erb`](app/views/todos/index.html.erb) or [`app/views/todos/index.json.jbuilder`](app/views/todos/index.json.jbuilder).
+
+Suggested controller pattern:
+
+```ruby
+def index
+  @todos = case params[:filter]
+           when "overdue" then Todo.overdue
+           when "upcoming" then Todo.upcoming
+           else Todo.all
+           end
+end
+```
+
+## 3. Add filter controls to [`app/views/todos/index.html.erb`](app/views/todos/index.html.erb)
+
+- Add simple links or a GET form above the todo list for `All`, `Overdue`, and `Upcoming`.
+- Each control should hit `/todos?filter=...` using normal Rails URL helpers (e.g. `todos_path(filter: "overdue")`).
+- No new JavaScript or Stimulus controller is required.
+
+## 4. Update fixtures in [`test/fixtures/todos.yml`](test/fixtures/todos.yml)
+
+- Give fixtures distinct `due_date` values so tests can distinguish:
+  - one overdue todo
+  - one upcoming todo (within 7 days)
+  - one with no due date
+  - optionally one due more than 7 days out (should not appear in `upcoming`)
+- Use distinct `description` values per fixture so controller tests can assert on response body content.
+
+## 5. Add model tests in [`test/models/todo_test.rb`](test/models/todo_test.rb)
+
+- Test `Todo.overdue` returns only past-dated todos with a due date.
+- Test `Todo.upcoming` returns only todos due within the next 7 days.
+- Test todos without a `due_date` are excluded from both scopes.
+
+## 6. Add controller tests in [`test/controllers/todos_controller_test.rb`](test/controllers/todos_controller_test.rb)
+
+- Keep the existing `"should get index"` test for the default unfiltered case.
+- Add tests for:
+  - `GET /todos?filter=overdue` returns success and only overdue fixture(s)
+  - `GET /todos?filter=upcoming` returns success and only upcoming fixture(s)
+  - `GET /todos?filter=all` returns all todos
+  - invalid filter value falls back to all todos
+- Assert on assigned records or response body content using fixture descriptions.
+- Optionally add one JSON index test to confirm filtered `@todos` is serialized the same way.
+
+## 7. Optional system test in [`test/system/todos_test.rb`](test/system/todos_test.rb)
+
+- Only if filter links are added in step 3: visit index, click `Overdue`, and assert only the expected todo appears.
+- Not required if controller/model tests are thorough, but useful for the new UI controls.
+
+---
+
+**Migration:** None. The `due_date` column already exists via [`db/migrate/20260519180933_add_due_date_to_todo.rb`](db/migrate/20260519180933_add_due_date_to_todo.rb).
+
+**Files to edit:**
+
+- [`app/models/todo.rb`](app/models/todo.rb)
+- [`app/controllers/todos_controller.rb`](app/controllers/todos_controller.rb)
+- [`app/views/todos/index.html.erb`](app/views/todos/index.html.erb)
+- [`test/fixtures/todos.yml`](test/fixtures/todos.yml)
+- [`test/models/todo_test.rb`](test/models/todo_test.rb)
+- [`test/controllers/todos_controller_test.rb`](test/controllers/todos_controller_test.rb)
+
+**Verification:** Run `bin/rails test` after implementation to confirm all new and existing tests pass.
+
+```mermaid
+flowchart LR
+  request["GET /todos?filter=..."] --> controller["TodosController#index"]
+  controller --> caseFilter{"params[:filter]"}
+  caseFilter -->|missing / all / invalid| allScope["Todo.all"]
+  caseFilter -->|overdue| overdueScope["Todo.overdue"]
+  caseFilter -->|upcoming| upcomingScope["Todo.upcoming"]
+  allScope --> assign["@todos"]
+  overdueScope --> assign
+  upcomingScope --> assign
+  assign --> html["index.html.erb"]
+  assign --> json["index.json.jbuilder"]
+```
  
 - **My edits:**
   - Dropped the system test (step 7). model + controller tests cover enough for now.
