@@ -1,12 +1,15 @@
-## Part 1
+## GH hw5 branch
+[homework-5-calebweldon (hw5)](https://github.com/NU-CS-Software-Studio-Spring-26/homework-5-calebweldon/tree/hw5)
+
+## PART 1
 - [.cursorignore](https://github.com/NU-CS-Software-Studio-Spring-26/homework-5-calebweldon/blob/hw5/.cursorignore)
 
-## Part 2
+## PART 2
 - [AGENTS.md](https://github.com/NU-CS-Software-Studio-Spring-26/homework-5-calebweldon/blob/hw5/AGENTS.md)
 - [.cursor/rules/rails-conventions.mdc](https://github.com/NU-CS-Software-Studio-Spring-26/homework-5-calebweldon/blob/hw5/.cursor/rules/rails-conventions.mdc)
 - [.cursor/rules/security.mdc](https://github.com/NU-CS-Software-Studio-Spring-26/homework-5-calebweldon/blob/hw5/.cursor/rules/security.mdc)
 
-## Part 3 (ASK)
+## PART 3 (ASK)
 - **Prompt:** Where in this codebase is "where the todos index is filtered" currently implemented? Cite the
 exact files and line numbers. Do not propose changes.
 - app/views/todos/index.html.erb [lines 5-7] (todos index is not filtered beyond loading every todo from the DB)
@@ -110,3 +113,15 @@ exact files and line numbers. Do not propose changes.
         - A new test in `test/controllers/todos_controller_test.rb` creates a todo with a `due_date` and asserts the saved record’s `due_date` matches
         - A new test in `test/controllers/todos_controller_test.rb` updates an existing todo with a `due_date` and asserts the saved record’s `due_date` matches
         - `bin/rails test test/controllers/todos_controller_test.rb` passes
+
+## PART 4 (DISCOVER)
+Turbo Streams are a way to only render part of a view without having to re-render the whole page or redirect. Concretely, a Turbo Stream response is an instruction document, where each instruction is a `<turbo-stream>` element telling the browser which DOM node to change and how. Turbo (the client library) reads the stream response and applies each `<turbo-stream>` instruction to the DOM. 
+
+One thing that AI told me is that Turbo Stream responses use the MIME type `text/vnd.turbo-stream.html`. I verified this in the Turbo Streams handbook under the section "Streaming From HTTP Responses". The section shows `Content-Type: text/vnd.turbo-stream.html; charset=utf-8` on a sample response, and says that Turbo injects that type into the `Accept` header on form submissions. This matches what the AI told me. 
+
+Turbo Streams follow CoC principles in a Rails app. For example, say we wanted the `#create` action in `TodosController` to return a turbo stream format. Firstly, inside the `create` action's `respond_to` block, we would add `format.turbo_stream` under the existing `format.html` and `format.json`. By convention, this would wire to a matching view in `app/views/todos/create.turbo_stream.erb`. This view would contain something along the lines of:
+```
+<%= turbo_stream.append "todos" do %>
+  <%= render @todo %>
+<% end %>
+```
